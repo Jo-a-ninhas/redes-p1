@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import asyncio
-from tcp import Servidor
+from ctypes import sizeof
+from logging import exception
 import re
+import queue
+from tcp import Servidor
 
 
 def validar_nome(nome):
@@ -17,6 +20,23 @@ def dados_recebidos(conexao, dados):
     if dados == b'':
         return sair(conexao)
     print(conexao, dados)
+
+    mensagem = b''
+
+    # É preciso fazer o tratamento dos dados antes e assim que a mensagem estiver completa, o comando PART é implementado da seguinte forma:
+    # if mensagem.startswith():
+    #     canal = mensagem.split(b' ')[1] # Obtem-se o nome do canal que pode vir junto com um '\r'
+    #     nome_canal = canal.split(b'\r')[0] # Obtem-se somente o nome do canal
+
+    #     usuario = identifica_usuario(conexao).lower() # Dicionário para mapear cada apelido para a conexão
+        
+    #     for apelido in canais[nome_canal]: # Identifica cada participante do grupo e manda a mensagem de saída do usuário
+    #         conexao_participante = identifica_conexao(apelido)
+    #         conexao_participante.enviar(b':' + user + b' PART ' + nome_canal + b'\r\n')
+
+    #     canais[nome_canal].remove(usuario) # Remove usuário do grupo
+
+    #     mensagem = b''
 
 
 def conexao_aceita(conexao):
