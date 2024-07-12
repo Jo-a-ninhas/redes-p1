@@ -35,7 +35,7 @@ def nick(conexao, dados):
         else:
             conexao.enviar((f':{current_nickname} NICK {dados}\n').encode('UTF-8'))
             del connections[current_nickname]
-        connections[dados] = conexao
+        connections[dados.lower()] = conexao
         return    
 
     #Nickname indisponível
@@ -43,7 +43,21 @@ def nick(conexao, dados):
         conexao.enviar((f':server 433 {current_nickname} {dados} :Nickname is already in use').encode('UTF-8'))
         return
 
+#Ta case sensitive isso?
+def send_message(conexao, dados):
+    remetente = '*'
+    if conexao in list(connections.values()):
+        remetente = list(connections.keys())[list(connections.values()).index(conexao)]
 
+    receiver = connections.get(dados.split(' ', 1)[0].lower())
+    if receiver is not None:
+        message = (dados.split(' ', 1)[1]).encode('UTF-8')
+        receiver.enviar((f'{remetente} PRIVMSG {dados.split(' ', 1)[0].lower()} :{message}').encode('UTF-8'))
+    
+
+def print_users(conexao):
+    for users in connections:
+        conexao.enviar((users + '\n').encode('UTF-8'))
 
 
     #<FUNCAO> msg\r\n 
@@ -55,11 +69,17 @@ def dados_recebidos(conexao, dados):
 
     dadosTratados = str(dados)[2:-5].split(' ', 1)
     
-    if dadosTratados[0] == "PING":
+    if dadosTratados[0] == 'PING':
         ping(conexao, dados)
 
-    if dadosTratados[0] == "NICK":
+    if dadosTratados[0] == 'NICK':
         nick(conexao, dadosTratados[1])
+
+    if dadosTratados[0] == 'PRIVMSG' or dadosTratados[0]=='msg':
+        send_message(conexao, dadosTratados[1])
+
+    if dadosTratados[0] == 'usrs':
+        print_users(conexao)
 
 
     mensagem = b''
