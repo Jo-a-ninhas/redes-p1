@@ -8,8 +8,7 @@ from tcp import Servidor
 
 
 def validar_nome(nome):
-    return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
-
+    return re.match('^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
 
 def sair(conexao):
     print(conexao, 'conexão fechada')
@@ -18,6 +17,33 @@ def sair(conexao):
 def ping(conexao, payload):
     conexao.enviar(b':server PING server :' + payload.split(b' ', 1)[1])
     
+def nick(conexao, dados):
+    #Nickname inválido
+    if not(validar_nome(dados)):
+        conexao.enviar((f'server 432 {dados} {dados} :Erroneous nickname\n').encode('UTF-8'))
+        return
+
+    current_nickname = '*'
+    if conexao in list(connections.values()):
+        current_nickname = list(connections.keys())[list(connections.values()).index(conexao)]
+    
+    #Nickname disponível
+    if not dados.lower() in [conn.lower() for conn in connections]:
+        if current_nickname == '*':
+            conexao.enviar((f':server 001 {dados} :Welcome\n').encode('UTF-8'))
+            conexao.enviar((f':server 422 {dados} :MOTD File is missing\n').encode('UTF-8'))
+        else:
+            conexao.enviar((f':{current_nickname} NICK {dados}\n').encode('UTF-8'))
+            del connections[current_nickname]
+        connections[dados] = conexao
+        return    
+
+    #Nickname indisponível
+    else:
+        conexao.enviar((f':server 433 {current_nickname} {dados} :Nickname is already in use').encode('UTF-8'))
+        return
+
+
 
 
     #<FUNCAO> msg\r\n 
@@ -31,6 +57,9 @@ def dados_recebidos(conexao, dados):
     
     if dadosTratados[0] == "PING":
         ping(conexao, dados)
+
+    if dadosTratados[0] == "NICK":
+        nick(conexao, dadosTratados[1])
 
 
     mensagem = b''
@@ -55,7 +84,7 @@ def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
     conexao.registrar_recebedor(dados_recebidos)
 
-
+connections = dict()
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
 asyncio.get_event_loop().run_forever()
