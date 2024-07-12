@@ -15,11 +15,23 @@ def sair(conexao):
     print(conexao, 'conexão fechada')
     conexao.fechar()
 
+def ping(conexao, payload):
+    conexao.enviar(b':server PING server :' + payload.split(b' ', 1)[1])
+    
 
+
+    #<FUNCAO> msg\r\n 
 def dados_recebidos(conexao, dados):
     if dados == b'':
+        print("Dados vazios")
         return sair(conexao)
     print(conexao, dados)
+
+    dadosTratados = str(dados)[2:-5].split(' ', 1)
+    
+    if dadosTratados[0] == "PING":
+        ping(conexao, dados)
+
 
     mensagem = b''
 
