@@ -10,8 +10,24 @@ from tcp import Servidor
 def validar_nome(nome):
     return re.match('^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
 
+#:apelido QUIT :Connection closed
 def sair(conexao):
-    print(conexao, 'conexão fechada')
+    user = '*'
+    if conexao in list(connections.values()):
+        user = list(connections.keys())[list(connections.values()).index(conexao)]
+
+    friends = []
+    for g in groups.values():
+        if conexao in g:
+            for connection in g:
+                if conexao != connection and not connection in friends:
+                    friends.append(connection)
+        g.remove(conexao)
+
+    for friend in friends:
+        friend.enviar((f'{user} QUIT :Connetcion closer').encode('UTF-8'))
+
+    print('conexão fechada')
     conexao.fechar()
 
 def ping(conexao, payload):
@@ -43,8 +59,7 @@ def nick(conexao, dados):
         conexao.enviar((f':server 433 {current_nickname} {dados} :Nickname is already in use').encode('UTF-8'))
         return
 
-#Ta case sensitive isso?
-def send_message(conexao, dados):
+def send_message_user(conexao, dados):
     remetente = '*'
     if conexao in list(connections.values()):
         remetente = list(connections.keys())[list(connections.values()).index(conexao)]
@@ -52,15 +67,72 @@ def send_message(conexao, dados):
     receiver = connections.get(dados.split(' ', 1)[0].lower())
     if receiver is not None:
         message = (dados.split(' ', 1)[1]).encode('UTF-8')
-        receiver.enviar((f'{remetente} PRIVMSG {dados.split(' ', 1)[0].lower()} :{message}').encode('UTF-8'))
-    
+        receiver.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}').encode('UTF-8'))
+
+def send_message_group(conexao, dados):
+    remetente = '*'
+    if conexao in list(connections.values()):
+        remetente = list(connections.keys())[list(connections.values()).index(conexao)]
+
+    receiver = groups.get(dados.split(' ', 1)[0].lower())
+    if receiver is not None:
+        message = (dados.split(' ', 1)[1]).encode('UTF-8')
+        for user in receiver:
+            user.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}').encode('UTF-8'))
+
+def send_message(conexao, dados):
+    if(dados[0] == '#'):
+        print('sending to group')
+        send_message_group(conexao, dados)
+    else:
+        print('sending to user')
+        send_message_user(conexao, dados)
 
 def print_users(conexao):
-    for users in connections:
-        conexao.enviar((users + '\n').encode('UTF-8'))
+    print(groups)
 
+def join_group(conexao, dados):
+    if dados[0] != '#' and not validar_nome(dados[1:]):
+        conexao.enviar((f'server 403 {dados} :No such channel\n').encode('UTF-8'))
+        return
+    g = groups.get(dados.lower())
+    if g is not None:
+        g.append(conexao)
+    else:
+        groups[dados.lower()] = [conexao]
+    g = groups.get(dados.lower())
 
-    #<FUNCAO> msg\r\n 
+    remetente = '*'
+    if conexao in list(connections.values()):
+        remetente = list(connections.keys())[list(connections.values()).index(conexao)]
+
+    for user in g:
+        user.enviar((f'{remetente} JOIN {dados}\n').encode('UTF-8'))
+
+    chanelMemberList = []
+    for connection in g:
+        member = list(connections.keys())[list(connections.values()).index(connection)]
+        chanelMemberList.append(member)
+    chanelMemberList.sort()
+    message = f':server 353 {remetente} = {dados} :' 
+    for s in chanelMemberList:
+        message += s
+    conexao.enviar((message + '\n').encode('UTF-8'))
+
+    conexao.enviar((f':server 366 {remetente} {dados} :End of /NAMES list.\n').encode('UTF-8'))
+
+def leave_group(conexao, dados):
+    group = groups.get(dados.lower())
+    group.remove(conexao)
+
+    remetente = '*'
+    if conexao in list(connections.values()):
+        remetente = list(connections.keys())[list(connections.values()).index(conexao)]
+
+    conexao.enviar((f'{remetente} PART {dados}').encode('UTF-8'))
+    for user in group:
+        user.enviar((f'{remetente} PART {dados}').encode('UTF-8'))
+
 def dados_recebidos(conexao, dados):
     if dados == b'':
         print("Dados vazios")
@@ -78,26 +150,14 @@ def dados_recebidos(conexao, dados):
     if dadosTratados[0] == 'PRIVMSG' or dadosTratados[0]=='msg':
         send_message(conexao, dadosTratados[1])
 
-    if dadosTratados[0] == 'usrs':
+    if dadosTratados[0] == 'JOIN':
+        join_group(conexao, dadosTratados[1])
+
+    if dadosTratados[0] == 'PART':
+        leave_group(conexao, dadosTratados[1])
+
+    if dadosTratados[0] == 'grps':
         print_users(conexao)
-
-
-    mensagem = b''
-
-    # É preciso fazer o tratamento dos dados antes e assim que a mensagem estiver completa, o comando PART é implementado da seguinte forma:
-    # if mensagem.startswith():
-    #     canal = mensagem.split(b' ')[1] # Obtem-se o nome do canal que pode vir junto com um '\r'
-    #     nome_canal = canal.split(b'\r')[0] # Obtem-se somente o nome do canal
-
-    #     usuario = identifica_usuario(conexao).lower() # Dicionário para mapear cada apelido para a conexão
-        
-    #     for apelido in canais[nome_canal]: # Identifica cada participante do grupo e manda a mensagem de saída do usuário
-    #         conexao_participante = identifica_conexao(apelido)
-    #         conexao_participante.enviar(b':' + user + b' PART ' + nome_canal + b'\r\n')
-
-    #     canais[nome_canal].remove(usuario) # Remove usuário do grupo
-
-    #     mensagem = b''
 
 
 def conexao_aceita(conexao):
@@ -105,6 +165,7 @@ def conexao_aceita(conexao):
     conexao.registrar_recebedor(dados_recebidos)
 
 connections = dict()
+groups = dict()
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
 asyncio.get_event_loop().run_forever()
