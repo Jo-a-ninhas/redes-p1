@@ -139,10 +139,21 @@ def dados_recebidos(conexao, dados):
         return sair(conexao)
     print(conexao, dados)
 
-    dadosTratados = str(dados)[2:-5].split(' ', 1)
+    if msgs.get(conexao) is None:
+        msgs[conexao] = dados
+    else:
+        msgs[conexao] += dados
+
+    print(msgs[conexao].decode('UTF-8').find('\r\n'))
+    if msgs[conexao].decode('UTF-8').find('\r\n') < 0:
+        return
+
+    dadosBrutos = msgs[conexao]
+    dadosTratados = dadosBrutos.decode('UTF-8')[:-2].split(' ', 1)
+    #dadosTratados = str(dados)[2:-5].split(' ', 1)
     
     if dadosTratados[0] == 'PING':
-        ping(conexao, dados)
+        ping(conexao, dadosBrutos)
 
     if dadosTratados[0] == 'NICK':
         nick(conexao, dadosTratados[1])
@@ -159,11 +170,13 @@ def dados_recebidos(conexao, dados):
     if dadosTratados[0] == 'grps':
         print_users(conexao)
 
+    del msgs[conexao]
 
 def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
     conexao.registrar_recebedor(dados_recebidos)
 
+msgs = dict()
 connections = dict()
 groups = dict()
 servidor = Servidor(6667)
