@@ -35,28 +35,29 @@ def ping(conexao, payload):
     
 def nick(conexao, dados):
     #Nickname inválido
-    if not(validar_nome(dados)):
-        conexao.enviar((f'server 432 {dados} {dados} :Erroneous nickname\n').encode('UTF-8'))
-        return
 
     current_nickname = '*'
     if conexao in list(connections.values()):
         current_nickname = list(connections.keys())[list(connections.values()).index(conexao)]
+
+    if not(validar_nome(dados)):
+        conexao.enviar((f':server 432 {current_nickname} {dados} :Erroneous nickname\r\n').encode('UTF-8'))
+        return
     
     #Nickname disponível
     if not dados.lower() in [conn.lower() for conn in connections]:
         if current_nickname == '*':
-            conexao.enviar((f':server 001 {dados} :Welcome\n').encode('UTF-8'))
-            conexao.enviar((f':server 422 {dados} :MOTD File is missing\n').encode('UTF-8'))
+            conexao.enviar((f':server 001 {dados} :Welcome\r\n').encode('UTF-8'))
+            conexao.enviar((f':server 422 {dados} :MOTD File is missing\r\n').encode('UTF-8'))
         else:
-            conexao.enviar((f':{current_nickname} NICK {dados}\n').encode('UTF-8'))
+            conexao.enviar((f':{current_nickname} NICK {dados}\r\n').encode('UTF-8'))
             del connections[current_nickname]
         connections[dados.lower()] = conexao
         return    
 
     #Nickname indisponível
     else:
-        conexao.enviar((f':server 433 {current_nickname} {dados} :Nickname is already in use').encode('UTF-8'))
+        conexao.enviar((f':server 433 {current_nickname} {dados} :Nickname is already in use\r\n').encode('UTF-8'))
         return
 
 def send_message_user(conexao, dados):
@@ -65,9 +66,11 @@ def send_message_user(conexao, dados):
         remetente = list(connections.keys())[list(connections.values()).index(conexao)]
 
     receiver = connections.get(dados.split(' ', 1)[0].lower())
+
     if receiver is not None:
-        message = (dados.split(' ', 1)[1]).encode('UTF-8')
-        receiver.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}').encode('UTF-8'))
+        message = (dados.split(' ', 1)[1])
+        print("Enviando")
+        receiver.enviar((f':{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} {message}\r\n').encode('UTF-8'))
 
 def send_message_group(conexao, dados):
     remetente = '*'
@@ -78,7 +81,7 @@ def send_message_group(conexao, dados):
     if receiver is not None:
         message = (dados.split(' ', 1)[1]).encode('UTF-8')
         for user in receiver:
-            user.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}').encode('UTF-8'))
+            user.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}\r\n').encode('UTF-8'))
 
 def send_message(conexao, dados):
     if(dados[0] == '#'):
@@ -169,6 +172,7 @@ def dados_recebidos(conexao, dados):
             nick(conexao, comando[1])
 
         if comando[0] == 'PRIVMSG' or comando[0]=='msg':
+            print(comando)
             send_message(conexao, comando[1])
 
         if comando[0] == 'JOIN':
