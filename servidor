@@ -31,7 +31,7 @@ def sair(conexao):
     conexao.fechar()
 
 def ping(conexao, payload):
-    conexao.enviar(b':server PING server :' + payload.split(b' ', 1)[1])
+    conexao.enviar(b':server PONG server :' + payload.split(b' ', 1)[1])
     
 def nick(conexao, dados):
     #Nickname inválido
@@ -146,29 +146,43 @@ def dados_recebidos(conexao, dados):
 
     print(msgs[conexao].decode('UTF-8').find('\r\n'))
     if msgs[conexao].decode('UTF-8').find('\r\n') < 0:
+        print(msgs[conexao].decode('UTF-8'))
         return
 
-    dadosBrutos = msgs[conexao]
-    dadosTratados = dadosBrutos.decode('UTF-8')[:-2].split(' ', 1)
+    dadosBinarios = msgs[conexao]
+    dadosTratados = dadosBinarios.decode('UTF-8')
+
+    #print(dadosTratados)
     #dadosTratados = str(dados)[2:-5].split(' ', 1)
-    
-    if dadosTratados[0] == 'PING':
-        ping(conexao, dadosBrutos)
+        
+    while '\r\n' in dadosTratados:
 
-    if dadosTratados[0] == 'NICK':
-        nick(conexao, dadosTratados[1])
+        comando, dadosTratados = dadosTratados.split('\r\n', 1)
+        comando = comando.split(' ', 1)
 
-    if dadosTratados[0] == 'PRIVMSG' or dadosTratados[0]=='msg':
-        send_message(conexao, dadosTratados[1])
+        if comando[0] == 'PING':
+            mensagem = comando[0] + ' ' + comando[1] + '\r\n'
+            msg_encode = mensagem.encode('UTF-8')
+            ping(conexao, msg_encode)
 
-    if dadosTratados[0] == 'JOIN':
-        join_group(conexao, dadosTratados[1])
+        if comando[0] == 'NICK':
+            nick(conexao, comando[1])
 
-    if dadosTratados[0] == 'PART':
-        leave_group(conexao, dadosTratados[1])
+        if comando[0] == 'PRIVMSG' or comando[0]=='msg':
+            send_message(conexao, comando[1])
 
-    if dadosTratados[0] == 'grps':
-        print_users(conexao)
+        if comando[0] == 'JOIN':
+            join_group(conexao, comando[1])
+
+        if comando[0] == 'PART':
+            leave_group(conexao, comando[1])
+
+        if comando[0] == 'grps':
+            print_users(conexao)
+
+    if(dadosTratados != ''):
+        msgs[conexao] = dadosTratados.encode("UTF-8")
+        return
 
     del msgs[conexao]
 
