@@ -27,10 +27,12 @@ def sair(conexao):
 
 
     for friend in friends:
-        friend.enviar((f'{user} QUIT :Connetcion closer').encode('UTF-8'))
+        friend.enviar((f':{user} QUIT :Connetcion closer\r\n').encode('UTF-8'))
 
     print('conexão fechada')
     conexao.fechar()
+
+    del connections[user]
 
 def ping(conexao, payload):
     conexao.enviar(b':server PONG server :' + payload.split(b' ', 1)[1])
