@@ -124,10 +124,10 @@ def join_group(conexao, dados):
     chanelMemberList.sort()
     message = f':server 353 {remetente} = {dados} :' 
     for s in chanelMemberList:
-        message += s
+        message += str(s) + " "
     conexao.enviar((message + '\n').encode('UTF-8'))
 
-    conexao.enviar((f':server 366 {remetente} {dados} :End of /NAMES list.\n').encode('UTF-8'))
+    conexao.enviar((f':server 366 {remetente} {dados} :End of /NAMES list.\r\n').encode('UTF-8'))
 
 def leave_group(conexao, dados):
     dados = dados.split(" ")[0]
