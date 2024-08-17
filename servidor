@@ -22,7 +22,9 @@ def sair(conexao):
             for connection in g:
                 if conexao != connection and not connection in friends:
                     friends.append(connection)
-        g.remove(conexao)
+        if conexao in g:
+            g.remove(conexao)
+
 
     for friend in friends:
         friend.enviar((f'{user} QUIT :Connetcion closer').encode('UTF-8'))
@@ -79,9 +81,10 @@ def send_message_group(conexao, dados):
 
     receiver = groups.get(dados.split(' ', 1)[0].lower())
     if receiver is not None:
-        message = (dados.split(' ', 1)[1]).encode('UTF-8')
+        message = (dados.split(' ', 1)[1])
         for user in receiver:
-            user.enviar((f'{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} :{message}\r\n').encode('UTF-8'))
+            if user != conexao:
+                user.enviar((f':{remetente} PRIVMSG {dados.split(" ", 1)[0].lower()} {message}\r\n').encode('UTF-8'))
 
 def send_message(conexao, dados):
     if(dados[0] == '#'):
@@ -110,7 +113,7 @@ def join_group(conexao, dados):
         remetente = list(connections.keys())[list(connections.values()).index(conexao)]
 
     for user in g:
-        user.enviar((f'{remetente} JOIN {dados}\n').encode('UTF-8'))
+        user.enviar((f':{remetente} JOIN :{dados}\r\n').encode('UTF-8'))
 
     chanelMemberList = []
     for connection in g:
