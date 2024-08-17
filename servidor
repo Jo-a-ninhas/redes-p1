@@ -128,16 +128,18 @@ def join_group(conexao, dados):
     conexao.enviar((f':server 366 {remetente} {dados} :End of /NAMES list.\n').encode('UTF-8'))
 
 def leave_group(conexao, dados):
+    dados = dados.split(" ")[0]
     group = groups.get(dados.lower())
-    group.remove(conexao)
+    if group is not None:
+        group.remove(conexao)
 
     remetente = '*'
     if conexao in list(connections.values()):
         remetente = list(connections.keys())[list(connections.values()).index(conexao)]
 
-    conexao.enviar((f'{remetente} PART {dados}').encode('UTF-8'))
+    conexao.enviar((f':{remetente} PART {dados}\r\n').encode('UTF-8'))
     for user in group:
-        user.enviar((f'{remetente} PART {dados}').encode('UTF-8'))
+        user.enviar((f':{remetente} PART {dados}\r\n').encode('UTF-8'))
 
 def dados_recebidos(conexao, dados):
     if dados == b'':
